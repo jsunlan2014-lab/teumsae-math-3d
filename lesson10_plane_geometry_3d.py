@@ -127,8 +127,8 @@ def base_figure(title, top_view=False):
     figure = go.Figure()
     eye = dict(x=0.01, y=0.01, z=2.55) if top_view else dict(x=1.25, y=1.25, z=1.15)
     figure.update_layout(
-        title=dict(text=title, x=0.5, xanchor="center"),
-        margin=dict(l=0, r=0, t=55, b=0), height=560,
+        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
+        margin=dict(l=0, r=0, t=42, b=0), height=410,
         showlegend=False,
         scene=dict(
             camera=dict(eye=eye), aspectmode="data",
@@ -427,7 +427,23 @@ def show_formula_steps(st, lesson, n=None, radius=None, angle=None, step=3):
 def main():
     import streamlit as st
 
-    st.set_page_config(page_title="틈새 공부 3D 수학 교실", page_icon="📐", layout="wide")
+    st.set_page_config(page_title="틈새 공부 3D 수학 교실", page_icon="📐", layout="centered")
+    st.markdown("""
+<style>
+    .block-container {max-width: 820px; padding-top: 1rem; padding-bottom: 1.5rem;}
+    h1 {font-size: 2rem !important; margin-bottom: 0.25rem !important;}
+    h2 {font-size: 1.35rem !important;}
+    h3 {font-size: 1.15rem !important;}
+    @media (max-width: 640px) {
+        .block-container {padding: 0.55rem 0.75rem 1.2rem;}
+        h1 {font-size: 1.48rem !important; line-height: 1.2 !important;}
+        h2 {font-size: 1.12rem !important;}
+        h3 {font-size: 1rem !important;}
+        [data-testid="stMetricValue"] {font-size: 1.5rem;}
+        [data-testid="stAlert"] {font-size: 0.9rem;}
+    }
+</style>
+""", unsafe_allow_html=True)
     st.title("📐 틈새 공부 3D 수학 교실")
     st.subheader("① 다각형의 내각·외각·부채꼴")
     st.caption(
@@ -452,12 +468,13 @@ def main():
         st.session_state.auto_step = 1
         st.session_state.last_lesson = lesson_code
 
-    control1, control2, control3, control4 = st.columns([1.1, 1.2, 1.4, 1.8])
+    control1, control2 = st.columns(2)
     with control1:
         auto_play = st.toggle("▶ 자동 설명 재생", value=True)
     with control2:
         speed = st.slider("단계 전환(초)", 1.5, 6.0, 3.0, 0.5,
                           disabled=not auto_play)
+    control3, control4 = st.columns(2)
     with control3:
         top_view = st.checkbox(
             "위에서 정확히 보기", value=False,
@@ -493,46 +510,47 @@ def main():
             + (f"{speed:g}초마다 자동 전환 중" if effective_auto_play else "직접 탐색 중")
         )
 
-        left, right = st.columns([1, 2], gap="large")
-        with left:
-            if lesson_code == "sector":
-                radius = st.slider("반지름 r", 1.0, 10.0, 4.0, 0.5, key="sector_radius")
-                angle = st.slider("중심각 θ", 10, 350, 90, 5, key="sector_angle")
-                values = sector_values(radius, angle)
-                metric1, metric2 = st.columns(2)
-                metric1.metric("호의 길이", f"{values['arc_length']:.2f}")
-                metric2.metric("부채꼴의 넓이", f"{values['area']:.2f}")
-                show_current_step(st, "sector", step, radius=radius, angle=angle)
-            else:
-                n = st.slider(
-                    "다각형의 변의 수 n", 3, 12, 5, key="polygon_sides",
-                    help="처음에는 오각형(n=5)으로 관찰해 보세요.",
-                )
-                if lesson_code == "interior":
-                    metric1, metric2 = st.columns(2)
-                    metric1.metric("내각의 합", f"{interior_sum(n)}°")
-                    metric2.metric(f"정{n}각형의 한 내각", f"{regular_interior_angle(n):g}°")
-                    show_current_step(st, "interior", step, n=n)
-                else:
-                    metric1, metric2 = st.columns(2)
-                    metric1.metric("외각의 합", "360°")
-                    metric2.metric(f"정{n}각형의 한 외각", f"{regular_exterior_angle(n):g}°")
-                    show_current_step(st, "exterior", step, n=n)
-
-        with right:
-            if lesson_code == "sector":
-                figure = sector_figure(radius, angle, top_view, step)
-            elif lesson_code == "interior":
-                figure = polygon_figure(n, "interior", step, top_view)
-            else:
-                figure = polygon_figure(n, "exterior", step, top_view)
-            st.plotly_chart(figure, width="stretch", config={"displaylogo": False})
-            if lesson_code == "interior" and n == 5:
-                st.success("오각형 안쪽의 주황색 호와 **108°** 표시를 확인하세요.")
-            st.caption(
-                "파란색/초록색 면은 얇은 3D 수학판입니다. 회전 때문에 각이 달라 보일 수 있지만 "
-                "계산된 각도는 변하지 않습니다."
+        if lesson_code == "sector":
+            radius = st.slider("반지름 r", 1.0, 10.0, 4.0, 0.5, key="sector_radius")
+            angle = st.slider("중심각 θ", 10, 350, 90, 5, key="sector_angle")
+            values = sector_values(radius, angle)
+            metric1, metric2 = st.columns(2)
+            metric1.metric("호의 길이", f"{values['arc_length']:.2f}")
+            metric2.metric("부채꼴의 넓이", f"{values['area']:.2f}")
+            show_current_step(st, "sector", step, radius=radius, angle=angle)
+        else:
+            n = st.slider(
+                "다각형의 변의 수 n", 3, 12, 5, key="polygon_sides",
+                help="처음에는 오각형(n=5)으로 관찰해 보세요.",
             )
+            if lesson_code == "interior":
+                metric1, metric2 = st.columns(2)
+                metric1.metric("내각의 합", f"{interior_sum(n)}°")
+                metric2.metric(f"정{n}각형의 한 내각", f"{regular_interior_angle(n):g}°")
+                show_current_step(st, "interior", step, n=n)
+            else:
+                metric1, metric2 = st.columns(2)
+                metric1.metric("외각의 합", "360°")
+                metric2.metric(f"정{n}각형의 한 외각", f"{regular_exterior_angle(n):g}°")
+                show_current_step(st, "exterior", step, n=n)
+
+        if lesson_code == "sector":
+            figure = sector_figure(radius, angle, top_view, step)
+        elif lesson_code == "interior":
+            figure = polygon_figure(n, "interior", step, top_view)
+        else:
+            figure = polygon_figure(n, "exterior", step, top_view)
+        st.plotly_chart(
+            figure,
+            width="stretch",
+            config={"displaylogo": False, "displayModeBar": False, "responsive": True},
+        )
+        if lesson_code == "interior" and n == 5:
+            st.success("오각형 안쪽의 주황색 호와 **108°** 표시를 확인하세요.")
+        st.caption(
+            "그림을 손가락으로 돌리고 두 손가락으로 확대할 수 있습니다. "
+            "회전해도 계산된 각도는 변하지 않습니다."
+        )
 
         # 화면을 그린 뒤 다음 자동 실행에서 사용할 단계를 준비합니다.
         if effective_auto_play:

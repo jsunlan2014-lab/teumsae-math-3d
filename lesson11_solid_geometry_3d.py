@@ -91,7 +91,7 @@ def face_triangles(vertex_count):
     return [(0, index, index + 1) for index in range(1, vertex_count - 1)]
 
 
-def base_figure(title, camera="perspective", height=570):
+def base_figure(title, camera="perspective", height=410):
     import plotly.graph_objects as go
 
     eye = (
@@ -101,8 +101,8 @@ def base_figure(title, camera="perspective", height=570):
     )
     figure = go.Figure()
     figure.update_layout(
-        title=dict(text=title, x=0.5, xanchor="center"),
-        margin=dict(l=0, r=0, t=50, b=0),
+        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
+        margin=dict(l=0, r=0, t=42, b=0),
         height=height,
         showlegend=False,
         scene=dict(
@@ -494,8 +494,24 @@ def main():
     st.set_page_config(
         page_title="틈새 공부 3D 입체도형 교실",
         page_icon="🧊",
-        layout="wide",
+        layout="centered",
     )
+    st.markdown("""
+<style>
+    .block-container {max-width: 820px; padding-top: 1rem; padding-bottom: 1.5rem;}
+    h1 {font-size: 2rem !important; margin-bottom: 0.25rem !important;}
+    h2 {font-size: 1.35rem !important;}
+    h3 {font-size: 1.15rem !important;}
+    @media (max-width: 640px) {
+        .block-container {padding: 0.55rem 0.75rem 1.2rem;}
+        h1 {font-size: 1.48rem !important; line-height: 1.2 !important;}
+        h2 {font-size: 1.12rem !important;}
+        h3 {font-size: 1rem !important;}
+        [data-testid="stMetricValue"] {font-size: 1.5rem;}
+        [data-testid="stAlert"] {font-size: 0.9rem;}
+    }
+</style>
+""", unsafe_allow_html=True)
     st.title("🧊 틈새 공부 3D 입체도형 교실")
     st.subheader("② 다면체·회전체·전개도")
     st.caption(
@@ -517,11 +533,12 @@ def main():
         st.session_state.solid_auto_step = 1
         st.session_state.solid_last_concept = concept
 
-    control1, control2, control3, control4 = st.columns([1.1, 1.2, 1.4, 1.8])
+    control1, control2 = st.columns(2)
     with control1:
         auto_play = st.toggle("▶ 자동 설명 재생", value=True)
     with control2:
         speed = st.slider("단계 전환(초)", 2.0, 7.0, 4.0, 0.5, disabled=not auto_play)
+    control3, control4 = st.columns(2)
     with control3:
         top_view = st.checkbox(
             "위에서 보기", value=False,
@@ -557,41 +574,42 @@ def main():
             + (f"{speed:g}초마다 자동 전환 중" if effective_auto else "직접 탐색 중")
         )
 
-        left, right = st.columns([1, 2], gap="large")
-        with left:
-            if concept == "polyhedron":
-                shape_label = st.selectbox("관찰할 다면체", list(SHAPE_LABELS))
-                shape = SHAPE_LABELS[shape_label]
-                data = polyhedron_data(shape)
-                metric1, metric2, metric3 = st.columns(3)
-                metric1.metric("면", data["faces_count"])
-                metric2.metric("모서리", data["edges_count"])
-                metric3.metric("꼭짓점", data["vertices_count"])
-                show_step_card(st, concept, step, shape=shape)
-            elif concept == "revolution":
-                revolution_label = st.selectbox("돌려 볼 평면도형", list(REVOLUTION_LABELS))
-                revolution = REVOLUTION_LABELS[revolution_label]
-                flat_name, solid_name = revolution_name(revolution)
-                metric1, metric2 = st.columns(2)
-                metric1.metric("돌리기 전", flat_name)
-                metric2.metric("돌린 후", solid_name)
-                show_step_card(st, concept, step, revolution=revolution)
-            else:
-                st.metric("정육면체의 면", "정사각형 6개")
-                st.write("전개도의 각 면에 이름을 표시했습니다.")
-                show_step_card(st, concept, step)
+        if concept == "polyhedron":
+            shape_label = st.selectbox("관찰할 다면체", list(SHAPE_LABELS))
+            shape = SHAPE_LABELS[shape_label]
+            data = polyhedron_data(shape)
+            metric1, metric2, metric3 = st.columns(3)
+            metric1.metric("면", data["faces_count"])
+            metric2.metric("모서리", data["edges_count"])
+            metric3.metric("꼭짓점", data["vertices_count"])
+            show_step_card(st, concept, step, shape=shape)
+        elif concept == "revolution":
+            revolution_label = st.selectbox("돌려 볼 평면도형", list(REVOLUTION_LABELS))
+            revolution = REVOLUTION_LABELS[revolution_label]
+            flat_name, solid_name = revolution_name(revolution)
+            metric1, metric2 = st.columns(2)
+            metric1.metric("돌리기 전", flat_name)
+            metric2.metric("돌린 후", solid_name)
+            show_step_card(st, concept, step, revolution=revolution)
+        else:
+            st.metric("정육면체의 면", "정사각형 6개")
+            st.write("전개도의 각 면에 이름을 표시했습니다.")
+            show_step_card(st, concept, step)
 
-        with right:
-            if concept == "polyhedron":
-                figure = polyhedron_figure(shape, step, top_view)
-            elif concept == "revolution":
-                figure = revolution_figure(revolution, step, top_view)
-            else:
-                figure = cube_net_figure(step, top_view)
-            st.plotly_chart(figure, width="stretch", config={"displaylogo": False})
-            st.caption(
-                "그림을 드래그하면 회전하고, 두 손가락이나 마우스 휠을 사용하면 확대·축소됩니다."
-            )
+        if concept == "polyhedron":
+            figure = polyhedron_figure(shape, step, top_view)
+        elif concept == "revolution":
+            figure = revolution_figure(revolution, step, top_view)
+        else:
+            figure = cube_net_figure(step, top_view)
+        st.plotly_chart(
+            figure,
+            width="stretch",
+            config={"displaylogo": False, "displayModeBar": False, "responsive": True},
+        )
+        st.caption(
+            "그림을 손가락으로 돌리고, 두 손가락으로 확대·축소할 수 있습니다."
+        )
 
         if effective_auto:
             st.session_state.solid_auto_step = 1 if step == 3 else step + 1
