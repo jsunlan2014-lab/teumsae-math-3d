@@ -198,7 +198,7 @@ def base_figure(title, top_view=False, height=325):
     return figure
 
 
-def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max, padding=1.32):
+def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max, padding=1.22):
     """평면만 보이는 장면도 갑자기 확대되지 않도록 3D 범위를 고정합니다."""
     x_extent = max(float(x_extent), 0.5)
     y_extent = max(float(y_extent), 0.5)
@@ -382,9 +382,9 @@ def prism_figure(step, values, top_view=False):
     )
 
     if step == 2:
-        add_face(figure, rectangle(0, a, b), "#2563EB", 0.78, "밑면 B")
+        add_face(figure, rectangle(0, a, b), "#93C5FD", 0.88, "밑면 B")
         add_polyline(figure, [*rectangle(0, a, b), rectangle(0, a, b)[0]], width=6, label="밑면")
-        add_text(figure, (0, 0, 0.15), "밑넓이 B = 가로 × 세로", "#FFFFFF", 16)
+        add_text(figure, (0, 0, 0.15), "밑넓이 B = 가로 × 세로", "#172554", 16)
     elif step == 4:
         add_box(figure, a, b, h, opacity=0.10)
         for fraction in (0.15, 0.32, 0.49, 0.66, 0.83):
@@ -418,9 +418,9 @@ def pyramid_figure(step, values, top_view=False):
     base, sides = pyramid_faces(a, h)
 
     if step == 2:
-        add_face(figure, base, "#2563EB", 0.78, "밑면 B")
+        add_face(figure, base, "#93C5FD", 0.88, "밑면 B")
         add_polyline(figure, [*base, base[0]], width=6, label="밑면")
-        add_text(figure, (0, 0, 0.14), "밑넓이 B = 한 변 × 한 변", "#FFFFFF", 16)
+        add_text(figure, (0, 0, 0.14), "밑넓이 B = 한 변 × 한 변", "#172554", 16)
     else:
         add_face(figure, base, "#60A5FA", 0.38, "정사각형 밑면")
         for index, side in enumerate(sides):
@@ -453,8 +453,8 @@ def cylinder_figure(step, values, top_view=False):
     )
 
     if step == 2:
-        add_disk(figure, r, 0, "#2563EB", 0.80, "밑면 B")
-        add_text(figure, (0, 0, 0.18), "밑넓이 B = πr²", "#FFFFFF", 17)
+        add_disk(figure, r, 0, "#93C5FD", 0.90, "밑면 B")
+        add_text(figure, (0, 0, 0.18), "밑넓이 B = πr²", "#172554", 17)
     else:
         add_cylinder_side(figure, r, h, opacity=0.48 if step == 3 else 0.26)
         add_disk(figure, r, 0, "#60A5FA", 0.45, "아랫면")
@@ -482,8 +482,8 @@ def cone_figure(step, values, top_view=False):
     )
 
     if step == 2:
-        add_disk(figure, r, 0, "#2563EB", 0.80, "밑면 B")
-        add_text(figure, (0, 0, 0.18), "밑넓이 B = πr²", "#FFFFFF", 17)
+        add_disk(figure, r, 0, "#93C5FD", 0.90, "밑면 B")
+        add_text(figure, (0, 0, 0.18), "밑넓이 B = πr²", "#172554", 17)
     else:
         add_cone_side(figure, r, h, opacity=0.52 if step == 3 else 0.35)
         add_disk(figure, r, 0, "#60A5FA", 0.48, "원 모양 밑면")
