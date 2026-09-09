@@ -171,25 +171,51 @@ def face_triangles(vertex_count):
     return [(0, index, index + 1) for index in range(1, vertex_count - 1)]
 
 
-def base_figure(title, top_view=False, height=360):
+def base_figure(title, top_view=False, height=325):
     import plotly.graph_objects as go
 
-    eye = dict(x=0.01, y=0.01, z=2.7) if top_view else dict(x=1.45, y=1.45, z=1.15)
+    # 휴대폰에서도 도형 전체가 보이도록 카메라를 조금 멀리 둡니다.
+    eye = dict(x=0.01, y=0.01, z=3.0) if top_view else dict(x=1.85, y=1.85, z=1.45)
     figure = go.Figure()
     figure.update_layout(
-        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=17)),
+        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=15)),
         height=height,
         margin=dict(l=0, r=0, t=38, b=0),
         showlegend=False,
         scene=dict(
-            camera=dict(eye=eye),
-            aspectmode="data",
+            camera=dict(
+                eye=eye,
+                projection=dict(type="orthographic"),
+            ),
+            aspectmode="cube",
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
             bgcolor="rgba(0,0,0,0)",
         ),
         paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return figure
+
+
+def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max):
+    """평면만 보이는 장면도 갑자기 확대되지 않도록 3D 범위를 고정합니다."""
+    x_extent = max(float(x_extent), 0.5)
+    y_extent = max(float(y_extent), 0.5)
+    z_min, z_max = float(z_min), float(z_max)
+    z_center = (z_min + z_max) / 2
+    half_span = max(x_extent, y_extent, (z_max - z_min) / 2, 1.0) * 1.55
+
+    figure.update_layout(
+        scene=dict(
+            aspectmode="cube",
+            xaxis=dict(range=[-half_span, half_span], visible=False),
+            yaxis=dict(range=[-half_span, half_span], visible=False),
+            zaxis=dict(
+                range=[z_center - half_span, z_center + half_span],
+                visible=False,
+            ),
+        )
     )
     return figure
 
@@ -366,11 +392,11 @@ def prism_figure(step, values, top_view=False):
         if step == 3:
             add_text(figure, (0, 0, h + 0.38), "파란 밑면 2개 + 노란 옆면 4개", "#92400E", 15)
 
-    if step in (1, 2):
-        add_height_and_radius(figure, h=h if step == 1 else None, a=a, b=b)
+    if step == 1:
+        add_height_and_radius(figure, h=h, a=a, b=b)
     if step == 5:
         add_text(figure, (0, 0, h + 0.45), "S = 2B + Ph   ·   V = Bh", "#111827", 16)
-    return figure
+    return fit_mobile_view(figure, a / 2 + 0.45, b / 2 + 0.45, 0, h + 0.75)
 
 
 def pyramid_faces(a, h):
@@ -408,7 +434,7 @@ def pyramid_figure(step, values, top_view=False):
         add_text(figure, (0, 0, h + 0.45), "같은 기둥 부피의 1/3", "#6D28D9", 16)
     elif step == 5:
         add_text(figure, (0, 0, h + 0.45), "S = B + ½Pl   ·   V = ⅓Bh", "#111827", 16)
-    return figure
+    return fit_mobile_view(figure, a / 2 + 0.45, a / 2 + 0.45, 0, h + 0.80)
 
 
 def cylinder_figure(step, values, top_view=False):
@@ -433,7 +459,7 @@ def cylinder_figure(step, values, top_view=False):
         add_text(figure, (0, 0, h + 0.38), "같은 원이 높이만큼 쌓여요", "#0E7490", 15)
     elif step == 5:
         add_text(figure, (0, 0, h + 0.40), "S = 2πr² + 2πrh   ·   V = πr²h", "#111827", 15)
-    return figure
+    return fit_mobile_view(figure, r + 0.40, r + 0.40, 0, h + 0.72)
 
 
 def cone_figure(step, values, top_view=False):
@@ -460,7 +486,7 @@ def cone_figure(step, values, top_view=False):
         add_text(figure, (0, 0, h + 0.42), "같은 원기둥 부피의 1/3", "#B45309", 16)
     elif step == 5:
         add_text(figure, (0, 0, h + 0.42), "S = πr² + πrl   ·   V = ⅓πr²h", "#111827", 15)
-    return figure
+    return fit_mobile_view(figure, r + 0.40, r + 0.40, 0, h + 0.76)
 
 
 def sphere_figure(step, values, top_view=False):
@@ -495,7 +521,7 @@ def sphere_figure(step, values, top_view=False):
         add_text(figure, (0, 0, r + 0.38), "구 = 둘러싼 원기둥 부피의 2/3", "#047857", 15)
     elif step == 5:
         add_text(figure, (0, 0, r + 0.38), "S = 4πr²   ·   V = ⁴⁄₃πr³", "#111827", 16)
-    return figure
+    return fit_mobile_view(figure, r + 0.42, r + 0.42, -r - 0.25, r + 0.72)
 
 
 def lesson_content(kind, step, values):
@@ -658,6 +684,7 @@ def main():
         [data-testid="stAlert"] {font-size: 0.84rem; padding: 0.52rem 0.62rem;}
         [data-testid="stMetricValue"] {font-size: 1.25rem;}
         .stButton button {min-height: 2.1rem; padding: 0.2rem 0.35rem;}
+        [data-testid="stPlotlyChart"] {max-width: 100% !important; overflow: hidden;}
     }
 </style>
 """, unsafe_allow_html=True)
