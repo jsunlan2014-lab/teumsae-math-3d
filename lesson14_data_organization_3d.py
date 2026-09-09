@@ -526,6 +526,46 @@ def show_step_card(st, data, step):
     st.success(f"⭐ {content['key']}")
 
 
+def shorts_content(data, step):
+    """세로형 Shorts 한 화면에 들어갈 짧은 설명을 만듭니다."""
+    stats = organize_data(data)
+    if step == 1:
+        explanation = "조사한 값들이 아직 뒤섞여 있어요. 값 하나를 기둥 하나로 세워 봅니다."
+        key = "원자료 = 처음 조사하여 얻은 자료"
+    elif step == 2:
+        example = stats["ordered"][4]
+        stem, leaf = divmod(example, 10)
+        explanation = "작은 수부터 줄을 세우고, 십의 자리와 일의 자리를 나눕니다."
+        key = f"{example} → 줄기 {stem}│잎 {leaf}"
+    elif step == 3:
+        leaves = " ".join(str(leaf) for leaf in stats["stem_leaf"].get(2, []))
+        explanation = "같은 줄기를 한 줄에 모으고, 잎은 작은 수부터 빠짐없이 씁니다."
+        key = f"줄기 2│{leaves}　(각 자료값을 다시 읽을 수 있어요)"
+    elif step == 4:
+        frequencies = "+".join(str(item["frequency"]) for item in stats["classes"])
+        explanation = "10씩 나눈 각 계급에 자료가 몇 개 들어가는지 셉니다."
+        key = f"도수의 합 {frequencies} = {stats['frequency_sum']} (전체 자료 수)"
+    elif step == 5:
+        explanation = "계급은 가로축에, 도수는 높이로 나타내면 히스토그램이 완성됩니다."
+        key = "히스토그램의 막대가 붙는 이유 = 계급이 연속되기 때문"
+    else:
+        raise ValueError("설명 단계는 1부터 5까지입니다.")
+    return explanation, key
+
+
+def show_shorts_heading(st, data, step):
+    explanation, key = shorts_content(data, step)
+    st.progress(step / 5)
+    st.markdown(
+        f"""
+<div class="shorts-step">{step}/5　{STEP_TITLES[step]}</div>
+<div class="shorts-explanation">{explanation}</div>
+""",
+        unsafe_allow_html=True,
+    )
+    return key
+
+
 def main():
     import streamlit as st
 
@@ -535,6 +575,10 @@ def main():
         layout="centered",
         initial_sidebar_state="collapsed",
     )
+    if "shorts_mode" not in st.session_state:
+        st.session_state.shorts_mode = True
+    shorts_mode = st.session_state.shorts_mode
+
     st.markdown("""
 <style>
     .block-container {max-width: 720px; padding-top: 0.65rem; padding-bottom: 1rem;}
@@ -556,16 +600,57 @@ def main():
 </style>
 """, unsafe_allow_html=True)
 
-    st.title("📊 틈새 공부 3D 수학 교실")
-    st.subheader("⑤ 자료와 가능성 · 자료의 정리")
-    st.caption(
-        "원자료가 줄기와 잎 그림·도수분포표·히스토그램으로 바뀌는 과정이 "
-        "5장면으로 자동 재생됩니다."
-    )
+    if shorts_mode:
+        st.markdown("""
+<style>
+    [data-testid="stHeader"], [data-testid="stToolbar"],
+    [data-testid="stDecoration"], #MainMenu, footer {display: none !important;}
+    .block-container {max-width: 430px; padding: 0.18rem 0.38rem 0.3rem !important;}
+    [data-testid="stVerticalBlock"] {gap: 0.34rem !important;}
+    [data-testid="stProgressBar"] {margin: 0.02rem 0 !important;}
+    .shorts-brand {
+        color: #172554; font-size: 1.22rem; font-weight: 800;
+        line-height: 1.15; text-align: center; margin: 0.08rem 0 0.04rem;
+    }
+    .shorts-topic {
+        color: #1D4ED8; font-size: 0.93rem; font-weight: 700;
+        text-align: center; margin-bottom: 0.12rem;
+    }
+    .shorts-step {
+        color: #172554; font-size: 1.02rem; font-weight: 800;
+        text-align: center; line-height: 1.2; margin: 0.03rem 0 0.22rem;
+    }
+    .shorts-explanation {
+        background: #E8F2FF; color: #174A7C; border-radius: 0.58rem;
+        padding: 0.48rem 0.62rem; font-size: 0.84rem; font-weight: 600;
+        line-height: 1.42; margin-bottom: 0.02rem;
+    }
+    .shorts-key {
+        background: #E7F8EE; color: #166534; border-radius: 0.58rem;
+        padding: 0.48rem 0.62rem; font-size: 0.86rem; font-weight: 750;
+        line-height: 1.35; text-align: center; margin-top: -0.08rem;
+    }
+    [data-testid="stPlotlyChart"] {height: 345px !important; overflow: hidden;}
+    [data-testid="stPlotlyChart"] > div {height: 345px !important;}
+    [data-testid="stToggle"] {margin: 0 !important;}
+    div[data-testid="stButton"] button {min-height: 1.9rem !important;}
+</style>
+<div class="shorts-brand">📊 틈새 공부 3D 수학</div>
+<div class="shorts-topic">자료의 정리 · 줄기와 잎 그림 · 도수분포표 · 히스토그램</div>
+""", unsafe_allow_html=True)
+        example_label = next(iter(EXAMPLES))
+        data = EXAMPLES[example_label]
+    else:
+        st.title("📊 틈새 공부 3D 수학 교실")
+        st.subheader("⑤ 자료와 가능성 · 자료의 정리")
+        st.caption(
+            "원자료가 줄기와 잎 그림·도수분포표·히스토그램으로 바뀌는 과정이 "
+            "5장면으로 자동 재생됩니다."
+        )
 
-    example_label = st.selectbox("살펴볼 예시 자료", list(EXAMPLES))
-    data = EXAMPLES[example_label]
-    st.markdown("**현재 자료:**　" + "　".join(str(value) for value in data))
+        example_label = st.selectbox("살펴볼 예시 자료", list(EXAMPLES))
+        data = EXAMPLES[example_label]
+        st.markdown("**현재 자료:**　" + "　".join(str(value) for value in data))
 
     if "organization_step" not in st.session_state:
         st.session_state.organization_step = 1
@@ -573,20 +658,25 @@ def main():
         st.session_state.organization_step = 1
         st.session_state.organization_last_example = example_label
 
-    first_control, second_control = st.columns(2)
-    with first_control:
-        paused = st.toggle("⏸ 일시정지", value=False)
-    with second_control:
-        front_view = st.checkbox("▥ 정면에서 보기", value=False)
+    if shorts_mode:
+        paused = st.toggle("⏸ 화면 멈춤", value=False)
+        front_view = False
+        speed = 4.0
+    else:
+        first_control, second_control = st.columns(2)
+        with first_control:
+            paused = st.toggle("⏸ 일시정지", value=False)
+        with second_control:
+            front_view = st.checkbox("▥ 정면에서 보기", value=False)
 
-    speed = st.slider(
-        "장면 전환 시간(초)",
-        2.0,
-        7.0,
-        3.5,
-        0.5,
-        disabled=paused,
-    )
+        speed = st.slider(
+            "장면 전환 시간(초)",
+            2.0,
+            7.0,
+            3.5,
+            0.5,
+            disabled=paused,
+        )
 
     supports_auto = hasattr(st, "fragment")
     if not supports_auto:
@@ -613,25 +703,41 @@ def main():
                 step = 1 if step == 5 else step + 1
                 st.session_state.organization_step = step
 
-        state_text = "멈춘 상태 · 버튼으로 장면 이동" if paused else f"{speed:g}초마다 자동 재생 중"
-        st.markdown(f"**현재 {step}/5장면** · {state_text}")
-        show_step_card(st, data, step)
+        if shorts_mode:
+            key_message = show_shorts_heading(st, data, step)
+        else:
+            state_text = "멈춘 상태 · 버튼으로 장면 이동" if paused else f"{speed:g}초마다 자동 재생 중"
+            st.markdown(f"**현재 {step}/5장면** · {state_text}")
+            show_step_card(st, data, step)
 
         figure = make_figure(data, step, front_view)
+        if shorts_mode:
+            figure.update_layout(
+                height=345,
+                margin=dict(l=0, r=0, t=34, b=0),
+                title=dict(font=dict(size=13)),
+            )
         st.plotly_chart(
             figure,
             width="stretch",
             config={"displaylogo": False, "displayModeBar": False, "responsive": True},
         )
-        st.caption("☝️ 한 손가락으로 회전 · 두 손가락으로 확대/축소")
+        if shorts_mode:
+            st.markdown(
+                f'<div class="shorts-key">⭐ {key_message}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.caption("☝️ 한 손가락으로 회전 · 두 손가락으로 확대/축소")
 
         if supports_auto and not paused:
             st.session_state.organization_step = 1 if step == 5 else step + 1
 
     show_simulation()
 
-    with st.expander("🧠 세 가지 자료 정리 방법을 한눈에 보기"):
-        st.markdown("""
+    if not shorts_mode:
+        with st.expander("🧠 세 가지 자료 정리 방법을 한눈에 보기"):
+            st.markdown("""
 | 정리 방법 | 무엇을 보여 주나요? | 꼭 기억할 점 |
 |---|---|---|
 | **줄기와 잎 그림** | 개별 자료값과 전체 분포 | 잎은 작은 수부터 씀 |
@@ -641,6 +747,15 @@ def main():
 **기억법:** 줄기와 잎은 **자릿값 나누기**, 도수분포표는 **구간별로 세기**,
 히스토그램은 **도수만큼 높이기**입니다.
 """)
+
+    with st.expander("⚙ 화면 설정"):
+        st.toggle(
+            "📱 Shorts 한 화면 모드",
+            key="shorts_mode",
+            help="켜면 촬영용 세로 화면, 끄면 전체 학습 화면이 표시됩니다.",
+        )
+        if shorts_mode:
+            st.caption("촬영이 끝난 뒤 이 스위치를 끄면 일반 학습 화면으로 돌아갑니다.")
 
 
 if __name__ == "__main__":
