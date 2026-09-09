@@ -198,13 +198,13 @@ def base_figure(title, top_view=False, height=325):
     return figure
 
 
-def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max):
+def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max, padding=1.32):
     """평면만 보이는 장면도 갑자기 확대되지 않도록 3D 범위를 고정합니다."""
     x_extent = max(float(x_extent), 0.5)
     y_extent = max(float(y_extent), 0.5)
     z_min, z_max = float(z_min), float(z_max)
     z_center = (z_min + z_max) / 2
-    half_span = max(x_extent, y_extent, (z_max - z_min) / 2, 1.0) * 1.55
+    half_span = max(x_extent, y_extent, (z_max - z_min) / 2, 1.0) * float(padding)
 
     figure.update_layout(
         scene=dict(
@@ -376,7 +376,10 @@ def add_height_and_radius(figure, h=None, r=None, a=None, b=None, apex=False):
 
 def prism_figure(step, values, top_view=False):
     a, b, h = values["a"], values["b"], values["h"]
-    figure = base_figure(f"{step}단계 · {STEP_TITLES[step]}", top_view)
+    figure = base_figure(
+        f"{step}단계 · {STEP_TITLES[step]}",
+        top_view or step == 2,
+    )
 
     if step == 2:
         add_face(figure, rectangle(0, a, b), "#2563EB", 0.78, "밑면 B")
@@ -396,7 +399,8 @@ def prism_figure(step, values, top_view=False):
         add_height_and_radius(figure, h=h, a=a, b=b)
     if step == 5:
         add_text(figure, (0, 0, h + 0.45), "S = 2B + Ph   ·   V = Bh", "#111827", 16)
-    return fit_mobile_view(figure, a / 2 + 0.45, b / 2 + 0.45, 0, h + 0.75)
+    view_height = 0.45 if step == 2 else h + 0.75
+    return fit_mobile_view(figure, a / 2 + 0.35, b / 2 + 0.35, 0, view_height)
 
 
 def pyramid_faces(a, h):
@@ -407,7 +411,10 @@ def pyramid_faces(a, h):
 
 def pyramid_figure(step, values, top_view=False):
     a, h = values["a"], values["h"]
-    figure = base_figure(f"{step}단계 · {STEP_TITLES[step]}", top_view)
+    figure = base_figure(
+        f"{step}단계 · {STEP_TITLES[step]}",
+        top_view or step == 2,
+    )
     base, sides = pyramid_faces(a, h)
 
     if step == 2:
@@ -434,12 +441,16 @@ def pyramid_figure(step, values, top_view=False):
         add_text(figure, (0, 0, h + 0.45), "같은 기둥 부피의 1/3", "#6D28D9", 16)
     elif step == 5:
         add_text(figure, (0, 0, h + 0.45), "S = B + ½Pl   ·   V = ⅓Bh", "#111827", 16)
-    return fit_mobile_view(figure, a / 2 + 0.45, a / 2 + 0.45, 0, h + 0.80)
+    view_height = 0.45 if step == 2 else h + 0.80
+    return fit_mobile_view(figure, a / 2 + 0.35, a / 2 + 0.35, 0, view_height)
 
 
 def cylinder_figure(step, values, top_view=False):
     r, h = values["r"], values["h"]
-    figure = base_figure(f"{step}단계 · {STEP_TITLES[step]}", top_view)
+    figure = base_figure(
+        f"{step}단계 · {STEP_TITLES[step]}",
+        top_view or step == 2,
+    )
 
     if step == 2:
         add_disk(figure, r, 0, "#2563EB", 0.80, "밑면 B")
@@ -459,12 +470,16 @@ def cylinder_figure(step, values, top_view=False):
         add_text(figure, (0, 0, h + 0.38), "같은 원이 높이만큼 쌓여요", "#0E7490", 15)
     elif step == 5:
         add_text(figure, (0, 0, h + 0.40), "S = 2πr² + 2πrh   ·   V = πr²h", "#111827", 15)
-    return fit_mobile_view(figure, r + 0.40, r + 0.40, 0, h + 0.72)
+    view_height = 0.45 if step == 2 else h + 0.72
+    return fit_mobile_view(figure, r + 0.30, r + 0.30, 0, view_height)
 
 
 def cone_figure(step, values, top_view=False):
     r, h = values["r"], values["h"]
-    figure = base_figure(f"{step}단계 · {STEP_TITLES[step]}", top_view)
+    figure = base_figure(
+        f"{step}단계 · {STEP_TITLES[step]}",
+        top_view or step == 2,
+    )
 
     if step == 2:
         add_disk(figure, r, 0, "#2563EB", 0.80, "밑면 B")
@@ -486,7 +501,8 @@ def cone_figure(step, values, top_view=False):
         add_text(figure, (0, 0, h + 0.42), "같은 원기둥 부피의 1/3", "#B45309", 16)
     elif step == 5:
         add_text(figure, (0, 0, h + 0.42), "S = πr² + πrl   ·   V = ⅓πr²h", "#111827", 15)
-    return fit_mobile_view(figure, r + 0.40, r + 0.40, 0, h + 0.76)
+    view_height = 0.45 if step == 2 else h + 0.76
+    return fit_mobile_view(figure, r + 0.30, r + 0.30, 0, view_height)
 
 
 def sphere_figure(step, values, top_view=False):
@@ -521,7 +537,7 @@ def sphere_figure(step, values, top_view=False):
         add_text(figure, (0, 0, r + 0.38), "구 = 둘러싼 원기둥 부피의 2/3", "#047857", 15)
     elif step == 5:
         add_text(figure, (0, 0, r + 0.38), "S = 4πr²   ·   V = ⁴⁄₃πr³", "#111827", 16)
-    return fit_mobile_view(figure, r + 0.42, r + 0.42, -r - 0.25, r + 0.72)
+    return fit_mobile_view(figure, r + 0.32, r + 0.32, -r - 0.20, r + 0.60)
 
 
 def lesson_content(kind, step, values):
