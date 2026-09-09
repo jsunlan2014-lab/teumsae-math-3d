@@ -171,7 +171,7 @@ def face_triangles(vertex_count):
     return [(0, index, index + 1) for index in range(1, vertex_count - 1)]
 
 
-def base_figure(title, top_view=False, height=325):
+def base_figure(title, top_view=False, height=345):
     import plotly.graph_objects as go
 
     # 휴대폰에서도 도형 전체가 보이도록 카메라를 조금 멀리 둡니다.
@@ -198,7 +198,7 @@ def base_figure(title, top_view=False, height=325):
     return figure
 
 
-def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max, padding=1.22):
+def fit_mobile_view(figure, x_extent, y_extent, z_min, z_max, padding=1.10):
     """평면만 보이는 장면도 갑자기 확대되지 않도록 3D 범위를 고정합니다."""
     x_extent = max(float(x_extent), 0.5)
     y_extent = max(float(y_extent), 0.5)
