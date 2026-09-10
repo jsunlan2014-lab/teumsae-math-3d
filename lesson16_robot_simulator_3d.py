@@ -1,10 +1,10 @@
 """틈새 공부 Python 교실 ⑯: 가상 3D 로봇 조종 시뮬레이터.
 
-설치: python -m pip install --upgrade "streamlit>=1.37" plotly
+설치: python -m pip install --upgrade "streamlit>=1.37" plotly streamlit-mic-recorder
 실행: python -m streamlit run lesson16_robot_simulator_3d.py
 
 처음에는 로봇이 자동으로 장애물을 피해 목표 지점까지 이동합니다.
-화면을 멈추면 전진·후진·좌회전·우회전 버튼으로 직접 조종할 수 있습니다.
+화면을 멈추면 버튼 또는 휴대폰 음성 명령으로 직접 조종할 수 있습니다.
 """
 
 from math import cos, pi, radians, sin, sqrt
@@ -322,6 +322,67 @@ def safe_move(x, y, heading, distance):
     return next_x, next_y, "안전하게 이동했습니다."
 
 
+def interpret_voice_command(spoken_text):
+    """한국어 음성 문장에서 로봇이 실행할 한 가지 명령을 찾습니다."""
+    normalized = str(spoken_text).lower().replace(" ", "")
+    command_words = (
+        ("reset", ("처음으로", "처음", "리셋", "원위치", "출발점")),
+        ("stop", ("멈춰", "멈춤", "정지", "스톱")),
+        ("backward", ("뒤로", "후진", "뒤")),
+        ("left", ("왼쪽", "좌회전")),
+        ("right", ("오른쪽", "우회전")),
+        ("forward", ("앞으로", "전진", "앞")),
+    )
+    for command, words in command_words:
+        if any(word in normalized for word in words):
+            return command
+    return None
+
+
+def execute_voice_command(state, spoken_text):
+    """인식한 음성 명령을 세션 상태에 한 번 적용합니다."""
+    command = interpret_voice_command(spoken_text)
+    heard = str(spoken_text).strip()
+    state["robot_last_voice"] = heard
+
+    if command is None:
+        state["robot_message"] = (
+            f'🎤 “{heard}”을 이해하지 못했습니다. '
+            '앞으로·뒤로·왼쪽·오른쪽·멈춰·처음으로 중 하나를 말해 주세요.'
+        )
+        return None
+
+    if command == "reset":
+        state["robot_auto_index"] = 0
+        state["robot_x"] = AUTO_ROUTE[0][0]
+        state["robot_y"] = AUTO_ROUTE[0][1]
+        state["robot_heading"] = AUTO_ROUTE[0][2]
+        state["robot_trail"] = [(AUTO_ROUTE[0][0], AUTO_ROUTE[0][1])]
+        result = "출발점으로 돌아왔습니다."
+    elif command == "stop":
+        result = "그 자리에서 안전하게 멈췄습니다."
+    elif command == "left":
+        state["robot_heading"] = (int(state["robot_heading"]) + TURN_ANGLE) % 360
+        result = "왼쪽으로 45° 회전했습니다."
+    elif command == "right":
+        state["robot_heading"] = (int(state["robot_heading"]) - TURN_ANGLE) % 360
+        result = "오른쪽으로 45° 회전했습니다."
+    else:
+        distance = MOVE_DISTANCE if command == "forward" else -MOVE_DISTANCE
+        new_x, new_y, result = safe_move(
+            float(state["robot_x"]),
+            float(state["robot_y"]),
+            int(state["robot_heading"]),
+            distance,
+        )
+        state["robot_x"] = new_x
+        state["robot_y"] = new_y
+        state["robot_trail"].append((new_x, new_y))
+
+    state["robot_message"] = f'🎤 “{heard}” → {result}'
+    return command
+
+
 def make_figure(x, y, heading, trail, planned_route=True, sensor_alert=False, height=410):
     """현재 로봇 상태를 보여 주는 Plotly 3D 그림을 만듭니다."""
     import plotly.graph_objects as go
@@ -408,6 +469,7 @@ def initialize_state(st):
         st.session_state.robot_heading = AUTO_ROUTE[0][2]
         st.session_state.robot_trail = [(AUTO_ROUTE[0][0], AUTO_ROUTE[0][1])]
         st.session_state.robot_message = "자동 주행을 시작합니다."
+        st.session_state.robot_last_voice = ""
 
 
 def reset_robot(st):
@@ -422,6 +484,11 @@ def reset_robot(st):
 
 def main():
     import streamlit as st
+
+    try:
+        from streamlit_mic_recorder import speech_to_text
+    except ImportError:
+        speech_to_text = None
 
     st.set_page_config(
         page_title="틈새 공부 · 가상 3D 로봇",
@@ -447,6 +514,8 @@ def main():
                  font-size:0.84rem; font-weight:650; line-height:1.40;}
     .robot-status {background:#E7F8EE; color:#166534; border-radius:0.62rem; padding:0.46rem 0.58rem;
                    font-size:0.84rem; font-weight:750; text-align:center; line-height:1.35;}
+    .voice-help {background:#FFF7D6; color:#713F12; border-radius:0.58rem; padding:0.38rem 0.52rem;
+                 font-size:0.78rem; font-weight:700; text-align:center; line-height:1.32;}
     div[data-testid="stButton"] button {min-height:2.45rem !important; padding:0.20rem !important;
                                         font-size:0.90rem !important; font-weight:700 !important;}
     @media (max-width: 640px) {
@@ -461,7 +530,7 @@ def main():
 <div class="robot-topic">가상 3D 휴머노이드 · 장애물을 피해 목표까지!</div>
 """, unsafe_allow_html=True)
 
-    paused = st.toggle("⏸ 자동 주행 멈춤 · 직접 조종", value=False, key="robot_paused")
+    paused = st.toggle("⏸ 자동 주행 멈춤 · 버튼/음성 조종", value=False, key="robot_paused")
     supports_auto = hasattr(st, "fragment")
     if not supports_auto:
         st.warning("자동 주행에는 Streamlit 1.37 이상이 필요합니다.")
@@ -497,6 +566,26 @@ def main():
         )
 
         if paused:
+            st.markdown(
+                '<div class="voice-help">🎙️ 마이크를 누르고 “앞으로·뒤로·왼쪽·오른쪽·멈춰·처음으로”라고 말해 보세요.</div>',
+                unsafe_allow_html=True,
+            )
+            if speech_to_text is None:
+                st.warning("음성 조종 준비가 필요합니다: streamlit-mic-recorder를 설치해 주세요.")
+            else:
+                voice_text = speech_to_text(
+                    language="ko",
+                    start_prompt="🎙️ 음성 명령 시작",
+                    stop_prompt="✅ 명령 보내기",
+                    just_once=True,
+                    use_container_width=True,
+                    key="robot_voice_command",
+                )
+                if voice_text:
+                    execute_voice_command(st.session_state, voice_text)
+                if st.session_state.get("robot_last_voice"):
+                    st.caption(f'🎤 인식된 말: “{st.session_state.robot_last_voice}”')
+
             left, forward, right = st.columns(3)
             if left.button("↶ 좌회전", width="stretch", key="robot_left"):
                 st.session_state.robot_heading = (st.session_state.robot_heading + TURN_ANGLE) % 360
@@ -573,6 +662,16 @@ def main():
 - **균형:** 두 팔을 움직여 넘어지지 않도록 중심을 잡습니다.
 - **판단:** 장애물이 가까우면 멈추고 안전한 방향으로 회전합니다.
 - **Python:** `감지 → 판단 → 움직임`의 순서를 반복하도록 명령합니다.
+""")
+
+    with st.expander("🎙️ 휴대폰 음성 조종 방법"):
+        st.markdown("""
+1. **자동 주행 멈춤 · 버튼/음성 조종**을 켭니다.
+2. **음성 명령 시작**을 누르고 마이크 사용을 허용합니다.
+3. `앞으로`, `뒤로`, `왼쪽`, `오른쪽`, `멈춰`, `처음으로` 중 하나를 말합니다.
+4. **명령 보내기**를 누르면 인식된 말과 실행 결과가 표시됩니다.
+
+카카오톡 안에서 마이크가 열리지 않으면 오른쪽 위 메뉴에서 **다른 브라우저로 열기**를 선택해 Chrome에서 실행하세요.
 """)
 
 
