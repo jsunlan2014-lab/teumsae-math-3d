@@ -19,10 +19,10 @@ TURN_ANGLE = 45
 # x, y, 진행 방향(도), 장면 제목, 초등학생도 이해하기 쉬운 설명
 AUTO_ROUTE = (
     (-4.0, -2.0, 0, "출발 준비", "파란 로봇이 목표를 향해 출발할 준비를 합니다."),
-    (-3.3, -2.0, 0, "앞으로 이동", "두 바퀴를 같은 방향으로 돌리면 앞으로 갑니다."),
+    (-3.3, -2.0, 0, "앞으로 이동", "오른발과 왼발을 번갈아 내디디며 앞으로 걷습니다."),
     (-2.6, -2.0, 0, "앞으로 이동", "로봇은 앞쪽 센서로 길을 계속 확인합니다."),
     (-2.0, -2.0, 0, "장애물 발견!", "센서가 앞의 상자를 발견했습니다. 먼저 멈춥니다."),
-    (-2.0, -2.0, 90, "왼쪽으로 회전", "왼쪽 바퀴는 천천히, 오른쪽 바퀴는 빠르게 돌려 방향을 바꿉니다."),
+    (-2.0, -2.0, 90, "왼쪽으로 회전", "몸과 발끝을 왼쪽으로 돌려 진행 방향을 바꿉니다."),
     (-2.0, -1.1, 90, "장애물 옆으로 이동", "상자와 안전한 거리를 두고 옆길로 이동합니다."),
     (-2.0, -0.35, 0, "오른쪽으로 회전", "장애물의 위쪽 길을 따라가도록 다시 방향을 바꿉니다."),
     (-0.9, -0.35, 0, "장애물 우회", "장애물과 부딪히지 않고 옆을 지나갑니다."),
@@ -31,7 +31,7 @@ AUTO_ROUTE = (
     (1.8, -1.15, -90, "목표 쪽으로 이동", "이제 목표가 있는 줄로 내려갑니다."),
     (1.8, -2.0, 0, "왼쪽으로 회전", "목표를 정면으로 바라보도록 마지막으로 회전합니다."),
     (2.6, -2.0, 0, "목표 접근", "장애물을 지나 목표에 가까워졌습니다."),
-    (3.55, -2.0, 0, "목표 도착!", "센서와 바퀴를 함께 사용해 안전하게 도착했습니다."),
+    (3.55, -2.0, 0, "목표 도착!", "가슴 센서와 두 다리를 사용해 안전하게 도착했습니다."),
 )
 
 
@@ -85,6 +85,56 @@ def add_box(figure, center, size, color, opacity=1.0, heading=0, name=""):
     ))
 
 
+def add_sphere(figure, center, radius, color, opacity=1.0, name=""):
+    """가벼운 저면수 메시로 둥근 부품을 추가해 화면 깜박임을 줄입니다."""
+    import plotly.graph_objects as go
+
+    center_x, center_y, center_z = center
+    latitude_steps = 7
+    longitude_steps = 12
+    x_values = []
+    y_values = []
+    z_values = []
+    for latitude_index in range(latitude_steps + 1):
+        latitude = pi * latitude_index / latitude_steps
+        for longitude_index in range(longitude_steps):
+            longitude = 2 * pi * longitude_index / longitude_steps
+            x_values.append(center_x + radius * sin(latitude) * cos(longitude))
+            y_values.append(center_y + radius * sin(latitude) * sin(longitude))
+            z_values.append(center_z + radius * cos(latitude))
+
+    triangle_i = []
+    triangle_j = []
+    triangle_k = []
+    for latitude_index in range(latitude_steps):
+        for longitude_index in range(longitude_steps):
+            next_longitude = (longitude_index + 1) % longitude_steps
+            lower_left = latitude_index * longitude_steps + longitude_index
+            lower_right = latitude_index * longitude_steps + next_longitude
+            upper_left = (latitude_index + 1) * longitude_steps + longitude_index
+            upper_right = (latitude_index + 1) * longitude_steps + next_longitude
+            triangle_i.extend((lower_left, lower_left))
+            triangle_j.extend((upper_left, upper_right))
+            triangle_k.extend((upper_right, lower_right))
+
+    figure.add_trace(go.Mesh3d(
+        x=x_values,
+        y=y_values,
+        z=z_values,
+        i=triangle_i,
+        j=triangle_j,
+        k=triangle_k,
+        color=color,
+        opacity=opacity,
+        flatshading=False,
+        lighting=dict(ambient=0.64, diffuse=0.88, specular=0.38),
+        lightposition=dict(x=5, y=4, z=9),
+        hovertemplate=f"{name}<extra></extra>" if name else None,
+        name=name,
+        showlegend=False,
+    ))
+
+
 def add_floor(figure):
     """바닥과 격자선을 그립니다."""
     import plotly.graph_objects as go
@@ -102,16 +152,23 @@ def add_floor(figure):
         showscale=False,
         hoverinfo="skip",
     ))
+    # 격자 18개를 한 개의 선 묶음으로 합쳐 WebGL 다시 그리기를 줄입니다.
+    grid_x = []
+    grid_y = []
+    grid_z = []
     for value in grid:
-        figure.add_trace(go.Scatter3d(
-            x=[value, value], y=[-4, 4], z=[0.012, 0.012],
-            mode="lines", line=dict(color="#C7D7EE", width=2), hoverinfo="skip",
-        ))
-        if value <= 4:
-            figure.add_trace(go.Scatter3d(
-                x=[-5, 5], y=[value, value], z=[0.012, 0.012],
-                mode="lines", line=dict(color="#C7D7EE", width=2), hoverinfo="skip",
-            ))
+        grid_x.extend((value, value, None, -5, 5, None))
+        grid_y.extend((-4, 4, None, value, value, None))
+        grid_z.extend((0.012, 0.012, None, 0.012, 0.012, None))
+    figure.add_trace(go.Scatter3d(
+        x=grid_x,
+        y=grid_y,
+        z=grid_z,
+        mode="lines",
+        line=dict(color="#C7D7EE", width=2),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
 
 
 def add_target(figure):
@@ -140,49 +197,102 @@ def add_target(figure):
 
 
 def add_robot(figure, x, y, heading, sensor_alert=False):
-    """몸체·운전석·바퀴·센서로 이루어진 로봇을 그립니다."""
+    """머리·몸통·팔·다리·가슴 센서가 있는 휴머노이드를 그립니다."""
     import plotly.graph_objects as go
 
-    add_box(figure, (x, y, 0.42), (1.18, 0.82, 0.38), "#2563EB", heading=heading, name="로봇 몸체")
-    add_box(figure, (x, y, 0.72), (0.56, 0.58, 0.28), "#93C5FD", heading=heading, name="로봇 제어 장치")
+    # 몸통과 허리
+    add_box(
+        figure, (x, y, 1.34), (0.48, 0.80, 0.70),
+        "#2563EB", heading=heading, name="휴머노이드 몸통",
+    )
+    chest_x, chest_y = rotate_xy(0.265, 0, x, y, heading)
+    add_box(
+        figure, (chest_x, chest_y, 1.36), (0.07, 0.48, 0.42),
+        "#93C5FD", heading=heading, name="가슴 제어판",
+    )
+    add_box(
+        figure, (x, y, 0.93), (0.44, 0.62, 0.24),
+        "#1D4ED8", heading=heading, name="허리",
+    )
 
-    for local_x in (-0.38, 0.38):
-        for local_y in (-0.50, 0.50):
-            wheel_x, wheel_y = rotate_xy(local_x, local_y, x, y, heading)
-            add_box(
-                figure,
-                (wheel_x, wheel_y, 0.28),
-                (0.34, 0.20, 0.34),
-                "#172033",
-                heading=heading,
-                name="바퀴",
-            )
+    # 머리와 얼굴. 앞쪽(+x)에 검은 얼굴판과 두 눈을 붙입니다.
+    neck_x, neck_y = rotate_xy(0, 0, x, y, heading)
+    add_box(
+        figure, (neck_x, neck_y, 1.70), (0.24, 0.28, 0.22),
+        "#64748B", heading=heading, name="목",
+    )
+    add_sphere(figure, (x, y, 2.02), 0.35, "#DCEEFF", name="휴머노이드 머리")
+    face_x, face_y = rotate_xy(0.31, 0, x, y, heading)
+    add_box(
+        figure, (face_x, face_y, 2.02), (0.055, 0.42, 0.18),
+        "#172554", heading=heading, name="얼굴 화면",
+    )
+    for eye_side in (-0.13, 0.13):
+        eye_x, eye_y = rotate_xy(0.345, eye_side, x, y, heading)
+        add_sphere(
+            figure, (eye_x, eye_y, 2.04), 0.058,
+            "#67E8F9", name="빛나는 눈",
+        )
 
-    # 로봇의 앞쪽 방향 화살표
+    # 두 팔과 손
+    for side in (-1, 1):
+        shoulder_x, shoulder_y = rotate_xy(0, side * 0.52, x, y, heading)
+        arm_x, arm_y = rotate_xy(0, side * 0.57, x, y, heading)
+        add_sphere(
+            figure, (shoulder_x, shoulder_y, 1.55), 0.15,
+            "#60A5FA", name="어깨 관절",
+        )
+        add_box(
+            figure, (arm_x, arm_y, 1.25), (0.23, 0.23, 0.62),
+            "#60A5FA", heading=heading, name="팔",
+        )
+        add_sphere(
+            figure, (arm_x, arm_y, 0.91), 0.13,
+            "#DCEEFF", name="손",
+        )
+
+    # 두 다리와 앞으로 조금 나온 발
+    for side in (-1, 1):
+        leg_x, leg_y = rotate_xy(0, side * 0.22, x, y, heading)
+        foot_x, foot_y = rotate_xy(0.15, side * 0.22, x, y, heading)
+        add_box(
+            figure, (leg_x, leg_y, 0.56), (0.27, 0.29, 0.68),
+            "#3B82F6", heading=heading, name="다리",
+        )
+        add_box(
+            figure, (foot_x, foot_y, 0.15), (0.56, 0.32, 0.22),
+            "#172554", heading=heading, name="발",
+        )
+
+    # 가슴 센서와 로봇의 진행 방향을 알려 주는 감지 빛
+    sensor_x, sensor_y = rotate_xy(0.32, 0, x, y, heading)
+    beam_color = "#EF4444" if sensor_alert else "#06B6D4"
+    add_sphere(
+        figure, (sensor_x, sensor_y, 1.39), 0.115,
+        beam_color, name="가슴 거리 센서",
+    )
     angle = radians(heading)
-    start_x, start_y = rotate_xy(0.48, 0, x, y, heading)
-    end_x, end_y = rotate_xy(1.42, 0, x, y, heading)
-    beam_color = "#DC2626" if sensor_alert else "#0EA5E9"
+    start_x, start_y = rotate_xy(0.42, 0, x, y, heading)
+    end_x, end_y = rotate_xy(1.52, 0, x, y, heading)
     figure.add_trace(go.Scatter3d(
-        x=[start_x, end_x], y=[start_y, end_y], z=[0.72, 0.72],
+        x=[start_x, end_x], y=[start_y, end_y], z=[1.39, 1.39],
         mode="lines",
         line=dict(color=beam_color, width=9, dash="dot"),
-        hovertemplate=("장애물 감지!" if sensor_alert else "앞쪽 거리 센서") + "<extra></extra>",
+        hovertemplate=("장애물 감지!" if sensor_alert else "가슴 거리 센서") + "<extra></extra>",
     ))
     figure.add_trace(go.Cone(
-        x=[end_x], y=[end_y], z=[0.72],
+        x=[end_x], y=[end_y], z=[1.39],
         u=[0.34 * cos(angle)], v=[0.34 * sin(angle)], w=[0],
         anchor="tip", sizemode="absolute", sizeref=0.26,
         colorscale=[[0, beam_color], [1, beam_color]],
         showscale=False, hoverinfo="skip",
     ))
 
-    # 카메라 방향과 무관하게 로봇 위치를 찾기 쉬운 큰 이름표
+    # 카메라 방향과 무관하게 로봇의 위치를 찾기 쉬운 이름표
     figure.add_trace(go.Scatter3d(
-        x=[x], y=[y], z=[1.27],
-        mode="markers+text",
-        marker=dict(size=24, color="#FFFFFF", line=dict(color="#1E3A8A", width=5)),
-        text=["<b>ROBOT</b>"], textposition="middle center",
+        x=[x], y=[y], z=[2.52],
+        mode="text",
+        text=["<b>휴머노이드</b>"], textposition="middle center",
         textfont=dict(size=15, color="#0F172A"), hoverinfo="skip",
     ))
 
@@ -267,10 +377,10 @@ def make_figure(x, y, heading, trail, planned_route=True, sensor_alert=False, he
                 projection=dict(type="orthographic"),
             ),
             aspectmode="manual",
-            aspectratio=dict(x=1.28, y=1.0, z=0.44),
+            aspectratio=dict(x=1.28, y=1.0, z=0.58),
             xaxis=dict(range=[-5.1, 5.1], visible=False),
             yaxis=dict(range=[-4.1, 4.1], visible=False),
-            zaxis=dict(range=[0, 2.6], visible=False),
+            zaxis=dict(range=[0, 2.85], visible=False),
             bgcolor="rgba(0,0,0,0)",
         ),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -348,14 +458,15 @@ def main():
     }
 </style>
 <div class="robot-brand">🤖 틈새 공부 Python 로봇 교실</div>
-<div class="robot-topic">가상 3D 로봇 · 장애물을 피해 목표까지!</div>
+<div class="robot-topic">가상 3D 휴머노이드 · 장애물을 피해 목표까지!</div>
 """, unsafe_allow_html=True)
 
     paused = st.toggle("⏸ 자동 주행 멈춤 · 직접 조종", value=False, key="robot_paused")
     supports_auto = hasattr(st, "fragment")
     if not supports_auto:
         st.warning("자동 주행에는 Streamlit 1.37 이상이 필요합니다.")
-    interval = "1.25s" if supports_auto and not paused else None
+    # 휴머노이드 장면을 완전히 그린 뒤 다음 장면으로 넘어가도록 여유를 둡니다.
+    interval = "2.4s" if supports_auto and not paused else None
     decorator = st.fragment(run_every=interval) if supports_auto else (lambda function: function)
 
     @decorator
@@ -367,7 +478,7 @@ def main():
             st.session_state.robot_y = pose[1]
             st.session_state.robot_heading = pose[2]
             st.session_state.robot_trail = [(item[0], item[1]) for item in AUTO_ROUTE[:index + 1]]
-            st.session_state.robot_message = pose[5]
+            st.session_state.robot_message = pose[4]
         else:
             index = int(st.session_state.robot_auto_index)
             pose = AUTO_ROUTE[index]
@@ -375,7 +486,7 @@ def main():
         progress_value = index / (len(AUTO_ROUTE) - 1)
         st.progress(progress_value)
         mode_text = "직접 조종 중" if paused else "자동 주행 중"
-        title = "직접 조종" if paused else pose[4]
+        title = "직접 조종" if paused else pose[3]
         st.markdown(
             f'<div class="robot-step">{mode_text}　·　{title}</div>',
             unsafe_allow_html=True,
@@ -437,6 +548,7 @@ def main():
         st.plotly_chart(
             figure,
             width="stretch",
+            key="robot_scene",
             config={"displayModeBar": False, "scrollZoom": True, "responsive": True},
         )
 
@@ -455,9 +567,10 @@ def main():
 
     with st.expander("🧠 로봇이 움직이는 원리"):
         st.markdown("""
-- **전진:** 왼쪽 바퀴와 오른쪽 바퀴를 같은 방향으로 돌립니다.
-- **회전:** 두 바퀴의 속도나 방향을 다르게 만듭니다.
-- **센서:** 로봇 앞의 물체까지 거리를 확인합니다.
+- **전진:** 왼발과 오른발을 번갈아 내디디며 몸의 균형을 잡습니다.
+- **회전:** 몸과 발끝을 움직일 방향으로 돌립니다.
+- **센서:** 가슴의 거리 센서가 앞에 있는 물체까지의 거리를 확인합니다.
+- **균형:** 두 팔을 움직여 넘어지지 않도록 중심을 잡습니다.
 - **판단:** 장애물이 가까우면 멈추고 안전한 방향으로 회전합니다.
 - **Python:** `감지 → 판단 → 움직임`의 순서를 반복하도록 명령합니다.
 """)
